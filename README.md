@@ -1,2 +1,2 @@
 # mikrostash
-Miktorik Stash, not so secret
+Mikrotik stash, not so secret
