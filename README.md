@@ -48,6 +48,6 @@
 
 ---
 
-**Автор:** [skurudo](https://github.com/skurudo)  
+Местами **автор** и тестировщик:  [skurudo](https://github.com/skurudo)  
 **Версия:** 2.0  
 **Последнее обновление:** 2024
