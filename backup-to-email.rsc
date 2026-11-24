@@ -1,48 +1,60 @@
-# script legally copied from Sergey Muranov
-# and evilly updated by Pavel Galkin
-#
-#Set E-mail to send (to send uses system E-mail account)
-:local EaccountTo "who@email.to";
+{
+    # Set the outgoing SMTP account in Tools -> E-mail, then set the recipient here.
+    :local emailTo "recipient@example.com"
+    :if ($emailTo = "recipient@example.com" || [:len $emailTo] = 0) do={
+        :error "Set emailTo to the backup recipient before running this script."
+    }
 
+    :local identity [/system identity get name]
+    :local date [/system clock get date]
+    :local time [/system clock get time]
+    :local dailyName ($identity . "-" . [:pick $date 8 10] . "-" . [:pick $date 5 7] . "-" . [:pick $date 0 4])
+    :local fileStem $dailyName
+    :local suffix 1
+    :while (([:len [/file find where name=($fileStem . ".backup")]] > 0) || ([:len [/file find where name=($fileStem . ".rsc")]] > 0)) do={
+        :set suffix ($suffix + 1)
+        :set fileStem ($dailyName . "-" . $suffix)
+    }
 
-#Delete last backup(s)
-:log info "Starting Backup Script...";
-:local sysname [/system identity get name];
-:local sysver [/system package get system version];
-:log info "Deleting last Backups...";
-:foreach i in=[/file find] do={:if ([:typeof [:find [/file get $i name] "$sysname-backup-"]]!="nil") do={/file remove $i}};
-:delay 5;
+    :local backupfile ($fileStem . ".backup")
+    :local exportfile ($fileStem . ".rsc")
+    /system backup save dont-encrypt=yes name=$backupfile
+    :delay 5s
+    /export file=$exportfile
+    :delay 5s
 
+    :local model [/system resource get board-name]
+    :local arch [/system resource get architecture-name]
+    :local subject "$time $date, Mikrotik $arch $model $identity"
+    :local attachments {$backupfile;$exportfile}
+    :for attempt from=1 to=2 do={
+        :local mailStatus "failed"
+        :do {
+            /tool e-mail send to=$emailTo subject=$subject body=$subject file=$attachments
+            :set mailStatus [/tool e-mail get last-status]
+            :local waited 0
+            :while ($mailStatus != "succeeded" && $mailStatus != "failed" && $waited < 30) do={
+                :delay 1s
+                :set waited ($waited + 1)
+                :set mailStatus [/tool e-mail get last-status]
+            }
+        } on-error={
+            :set mailStatus "failed"
+        }
 
-#Create and send Full Backup
-:local backupfile ("$sysname-backup-" . [:pick [/system clock get date] 7 11] . [:pick [/system clock get date] 0 3] . [:pick [/system clock get date] 4 6] . ".backup");
-:log info "Creating new Full Backup file...";
-/system backup save name=$backupfile;
-:delay 10;
-:log info "Sending Full Backup file via E-mail...";
-/tool e-mail send to=$EaccountTo \
-	file=$backupfile subject=("TrestVPNLand - $sysname Full Backup (" . [/system clock get date] . ")") \
-	body=("$sysname full Backup file see in attachment. \nRouterOS version: $sysver.");
-:delay 5;
-
-
-#Create and send Setup Backup
-:local exportfile ("$sysname-backup-" . [:pick [/system clock get date] 7 11] . [:pick [/system clock get date] 0 3] . [:pick [/system clock get date] 4 6] . ".rsc");
-:log info "Creating new Setup Script file...";
-/export file=$exportfile;
-:delay 10;
-:log info "Sending Setup Script file via E-mail...";
-/tool e-mail send to=$EaccountTo \
-	file=$exportfile subject=(" TrestVPNLand - $sysname Setup Script Backup (" . [/system clock get date] . ")") \
-	body=("$sysname Setup Script file see in attachment. \nRouterOS version: $sysver.");
-:delay 5;
-
-
-#Finish
-:log info "All System Backups emailed successfully.\nBackuping completed.";
-
-#Delete all files in /
-#/file remove [find] 
-/file remove [find type="backup"]
-/file remove [find type="script"]
-/file remove [find type=".rif file"]
+        :if ($mailStatus = "succeeded") do={
+            /file remove $backupfile
+            /file remove $exportfile
+            :log info ("Backup email sent: " . $fileStem)
+            :return []
+        }
+        :if ($mailStatus != "failed") do={
+            :error ("Backup email status unconfirmed; files retained: " . $fileStem)
+        }
+        :if ($attempt = 1) do={
+            :log warning "Backup email failed; retrying in 30 seconds."
+            :delay 30s
+        }
+    }
+    :error ("Backup email failed twice; files retained: " . $fileStem)
+}

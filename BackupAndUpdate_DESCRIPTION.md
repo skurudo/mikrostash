@@ -20,7 +20,7 @@
 - **installOnlyPatchUpdates** - Установка только патч-обновлений
 
 ## Требования
-- RouterOS версии 6.43.7 или выше
+- RouterOS версии 7.1 или выше
 - Настроенные настройки Email в Tools -> Email
 - Установленное имя устройства (System -> Identity)
 

@@ -16,42 +16,40 @@
 :set ts ([:pick $ts 0 2].[:pick $ts 3 5].[:pick $ts 6 8])
 
 :local ds [/system clock get date]
-:set ds ([:pick $ds 7 11].[:pick $ds 0 3].[:pick $ds 4 6])
+:if ([:pick $ds 4 5] = "-") do={
+  :set ds ([:pick $ds 0 4].[:pick $ds 5 7].[:pick $ds 8 10])
+} else={
+  :set ds ([:pick $ds 7 11].[:pick $ds 0 3].[:pick $ds 4 6])
+}
 
 :local fname ("BACKUP-".[/system identity get name]."-".$ds."-".$ts)
-:local sfname ("/".$fname)
+:local backupFiles [:toarray ""]
 
 :if ($saveUserDB) do={
-  /tool user-manager database save name=($sfname.".umb")
+  /user-manager database save name=$fname
+  :set backupFiles ($backupFiles,($fname.".umb"))
   :log info message="User Manager DB Backup Finished"
 }
 
 :if ($saveSysBackup) do={
-  :if ($encryptSysBackup = true) do={ /system backup save name=($sfname.".backup") }
-  :if ($encryptSysBackup = false) do={ /system backup save dont-encrypt=yes name=($sfname.".backup") }
+  :if ($encryptSysBackup = true) do={ /system backup save name=($fname.".backup") }
+  :if ($encryptSysBackup = false) do={ /system backup save dont-encrypt=yes name=($fname.".backup") }
+  :set backupFiles ($backupFiles,($fname.".backup"))
   :log info message="System Backup Finished"
 }
 
-if ($saveRawExport) do={
-  /export file=($sfname.".rsc")
+:if ($saveRawExport) do={
+  /export file=($fname.".rsc")
+  :set backupFiles ($backupFiles,($fname.".rsc"))
   :log info message="Raw configuration script export Finished"
 }
 
-:local backupFileName ""
-
-:foreach backupFile in=[/file find] do={
-  :set backupFileName ("/".[/file get $backupFile name])
-  :if ([:typeof [:find $backupFileName $sfname]] != "nil") do={
-    /tool fetch address=$FTPServer port=$FTPPort src-path=$backupFileName user=$FTPUser mode=ftp password=$FTPPass dst-path=$backupFileName upload=yes
-  }
+:foreach backupFile in=$backupFiles do={
+  /tool fetch address=$FTPServer port=$FTPPort src-path=$backupFile user=$FTPUser mode=ftp password=$FTPPass dst-path=("/".$backupFile) upload=yes
 }
 
-:delay 5s
-
-:foreach backupFile in=[/file find] do={
-  :if ([:typeof [:find [/file get $backupFile name] "BACKUP-"]]!="nil") do={
-    /file remove $backupFile
-  }
+:foreach backupFile in=$backupFiles do={
+  /file remove [find where name=$backupFile]
 }
 
 :log info message="Successfully removed Temporary Backup Files"

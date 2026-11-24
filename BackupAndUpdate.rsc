@@ -11,7 +11,7 @@
 # You can contact me by e-mail at tebiev@mail.com
 #
 # IMPORTANT!
-# Minimum supported RouterOS version is v6.43.7
+# Minimum supported RouterOS version is v7.1.
 #
 #----------MODIFY THIS SECTION AS NEEDED----------------------------------------
 ## Notification e-mail
@@ -61,7 +61,14 @@
 :log info "$SMP Script Mode: $scriptMode, forceBackup: $forceBackup";
 
 #Check proper email config
-:if ([:len $emailAddress] = 0 or [:len [/tool e-mail get address]] = 0 or [:len [/tool e-mail get from]] = 0) do={
+:local smtpServer;
+:do {
+	:set smtpServer [/tool e-mail get server];
+} on-error={
+	# RouterOS before 7.12 calls this property "address".
+	:set smtpServer [/tool e-mail get address];
+}
+:if ([:len $emailAddress] = 0 or [:len [:tostr $smtpServer]] = 0 or [:tostr $smtpServer] = "0.0.0.0" or [:len [/tool e-mail get from]] = 0) do={
 	:log error ("$SMP Email configuration is not correct, please check Tools -> Email. Script stopped.");   
 	:error "$SMP bye!";
 }
@@ -153,11 +160,11 @@ if ([:len [/system identity get name]] = 0 or [/system identity get name] = "Mik
 	}
 	:log info ("$SMP System backup created. $backupFileSys");   
 
-	## Export config file
-	:if ($sensetiveDataInConfig = true) do={
-		/export compact file=$backupName;
+	## RouterOS 7 hides sensitive values unless explicitly requested.
+	:if ($sensetiveDataInConfig) do={
+		/export compact show-sensitive file=$backupName;
 	} else={
-		/export compact hide-sensitive file=$backupName;
+		/export compact file=$backupName;
 	}
 	:log info ("$SMP Config file was exported. $backupFileConfig");   
 
@@ -169,17 +176,31 @@ if ([:len [/system identity get name]] = 0 or [/system identity get name] = "Mik
 :global buGlobalVarUpdateStep;
 ############### ^^^^^^^^^ GLOBALS ^^^^^^^^^ ###############
 
-#Current date time in format: 2020jan15-221324 
-:local dateTime ([:pick [/system clock get date] 7 11] . [:pick [/system clock get date] 0 3] . [:pick [/system clock get date] 4 6] . "-" . [:pick [/system clock get time] 0 2] . [:pick [/system clock get time] 3 5] . [:pick [/system clock get time] 6 8]);
+# RouterOS 7.10+ returns an ISO date, earlier versions return mmm/dd/yyyy.
+:local fileDate [/system clock get date];
+:local fileTime [/system clock get time];
+:if ([:pick $fileDate 3 4] = "/") do={
+	:set fileDate ([:pick $fileDate 7 11] . [:pick $fileDate 0 3] . [:pick $fileDate 4 6]);
+}
+:local dateTime ($fileDate . "-" . [:pick $fileTime 0 2] . [:pick $fileTime 3 5] . [:pick $fileTime 6 8]);
 
 :local deviceOsVerInst 			[/system package update get installed-version];
 :local deviceOsVerInstNum 		[$buGlobalFuncGetOsVerNum paramOsVer=$deviceOsVerInst];
 :local deviceOsVerAvail 		"";
 :local deviceOsVerAvailNum 		0;
-:local deviceRbModel			[/system routerboard get model];
-:local deviceRbSerialNumber 	[/system routerboard get serial-number];
-:local deviceRbCurrentFw 		[/system routerboard get current-firmware];
-:local deviceRbUpgradeFw 		[/system routerboard get upgrade-firmware];
+# CHR and x86 installations have no RouterBOARD firmware or serial number.
+:local deviceRbModel [/system resource get architecture-name];
+:local hasRouterBoard false;
+:do { :set hasRouterBoard [/system routerboard get routerboard]; } on-error={}
+:local deviceRbSerialNumber "NA";
+:local deviceRbCurrentFw "N/A";
+:local deviceRbUpgradeFw "N/A";
+:if ($hasRouterBoard) do={
+	:set deviceRbModel [/system routerboard get model];
+	:set deviceRbSerialNumber [/system routerboard get serial-number];
+	:set deviceRbCurrentFw [/system routerboard get current-firmware];
+	:set deviceRbUpgradeFw [/system routerboard get upgrade-firmware];
+}
 :local deviceIdentityName 		[/system identity get name];
 :local deviceIdentityNameShort 	[:pick $deviceIdentityName 0 18]
 :local deviceUpdateChannel 		[/system package update get channel];
@@ -315,7 +336,7 @@ if ([:len [/system identity get name]] = 0 or [/system identity get name] = "Mik
 :if ($updateStep = 2) do={
 	:log info ("$SMP Performing the second step.");   
 	## RouterOS is the latest, let's check for upgraded routerboard firmware
-	if ($deviceRbCurrentFw != $deviceRbUpgradeFw) do={
+	if ($hasRouterBoard and $deviceRbCurrentFw != $deviceRbUpgradeFw) do={
 		:set isSendEmailRequired false;
 		:delay 10s;
 		:log info "$SMP Upgrading routerboard firmware from v.$deviceRbCurrentFw to v.$deviceRbUpgradeFw";
@@ -329,7 +350,7 @@ if ([:len [/system identity get name]] = 0 or [/system identity get name] = "Mik
 		## Reboot system to boot with new firmware
 		/system reboot;
 	} else={
-		:log info "$SMP It appers that your routerboard is already up to date, skipping this step.";
+		:log info "$SMP No RouterBOARD firmware upgrade required.";
 		:set updateStep 3;
 	};
 }
@@ -377,7 +398,12 @@ if ([:len [/system identity get name]] = 0 or [/system identity get name] = "Mik
 
 	:delay 30s;
 	
-	:if ([:len $mailAttachments] > 0 and [/tool e-mail get last-status] = "succeeded") do={
+	:local mailStatus [/tool e-mail get last-status];
+	:if ($isOsNeedsToBeUpdated and $mailStatus != "succeeded") do={
+		:set isOsNeedsToBeUpdated false;
+		:log warning "$SMP RouterOS update cancelled: backup email delivery was not confirmed ($mailStatus).";
+	}
+	:if ([:len $mailAttachments] > 0 and $mailStatus = "succeeded") do={
 		:log info "$SMP File system cleanup."
 		/file remove $mailAttachments; 
 		:delay 2s;

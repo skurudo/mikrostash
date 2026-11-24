@@ -20,7 +20,7 @@
 - **installOnlyPatchUpdates** - Install only patch updates
 
 ## Requirements
-- RouterOS version 6.43.7 or higher
+- RouterOS version 7.1 or higher
 - Configured Email settings in Tools -> Email
 - Set device name (System -> Identity)
 
