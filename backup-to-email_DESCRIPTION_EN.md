@@ -1,37 +1,15 @@
-# backup-to-email.rsc - Script Description
+# Email MikroTik backups
 
-## Purpose
-**backup-to-email.rsc** is a script for automatic sending of MikroTik configuration backups via email.
+[backup-to-email.rsc](backup-to-email.rsc) for RouterOS 7.10 and later sends two attachments in one email. The `.backup` file is an unencrypted binary backup, and the `.rsc` file contains the configuration produced by the standard `/export` command.
 
-## Functionality
-- Creation of configuration backups
-- Automatic email sending
-- Email attachment support
-- Email subject and body customization
-- Automatic cleanup of temporary files
+## Setup and use
 
-## Configuration Parameters
-- **emailTo** - Recipient email address
-- **emailSubject** - Email subject
-- **emailBody** - Email body text
-- **backupName** - Backup file name
-- **includePasswords** - Include passwords in configuration
+1. In WinBox, open **Tools → E-mail**. Enter the SMTP server address, port and **From** address. Select the TLS mode required by your provider. If the server requires authentication, enter the username and password. RouterOS stores the SMTP password in its **E-mail** settings.
+2. At the top of the script, replace `recipient@example.com` in `emailTo` with the recipient’s address.
+3. Run the script manually or add it to **System → Scheduler** to send backups on a schedule.
 
-## Requirements
-- Configured Email settings in Tools -> Email
-- SMTP server with attachment support
-- Sufficient space for temporary files
+Both filenames include the date in `DD-MM-YYYY` format. If a name is already in use, the script adds a suffix to both new filenames.
 
-## Usage
-1. Configure email parameters at the beginning of the script
-2. Ensure Email is configured in Tools -> Email
-3. Copy the script to your device
-4. Run manually or add to scheduler
+If sending fails, the script retries once after 30 seconds. After a successful send, it deletes only the two files created during that run. If both attempts fail or RouterOS cannot confirm the result within 30 seconds, both files stay on the router.
 
-## Features
-- Creates temporary files in /flash/rw/
-- Automatically removes temporary files after sending
-- Supports HTML formatting in email
-
----
-[English](backup-to-email_DESCRIPTION_EN.md) | [Русский](backup-to-email_DESCRIPTION.md)
+[Русский](backup-to-email_DESCRIPTION.md)

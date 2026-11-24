@@ -25,15 +25,15 @@
 - **[check-for-update.rsc](check-for-update.rsc)** - Update checking. Checks for new RouterOS versions and notifies the administrator about available updates. 📖 [Description](check-for-update_DESCRIPTION_EN.md) | [Описание](check-for-update_DESCRIPTION.md)
 
 ### ⚡ Additional Functions
-- **[ltestat.rsc](ltestat.rsc)** - Additional statistical functions. Provides extended device performance statistics for detailed performance analysis. 📖 [Description](ltestat_DESCRIPTION_EN.md) | [Описание](ltestat_DESCRIPTION.md)
+- **[ltestat.rsc](ltestat.rsc)** - Checks the LTE connection and restarts the interface if it reports a disconnected state. 📖 [Description](ltestat_DESCRIPTION_EN.md) | [Описание](ltestat_DESCRIPTION.md)
 
 ### 🎵 Entertainment
 - **[music-imperial-march.rsc](music-imperial-march.rsc)** - Playing "Imperial March". Plays the melody through the device's built-in speaker to demonstrate capabilities. 📖 [Description](music-imperial-march_DESCRIPTION_EN.md) | [Описание](music-imperial-march_DESCRIPTION.md)
 
 ## Requirements
 
-- MikroTik RouterOS version 6.43.7 or higher
-- Configured Email settings (for scripts with email notifications)
+- The updated backup and LTE scripts require RouterOS 7. `backup-to-email.rsc` requires 7.10 or later.
+- For email scripts, configure the SMTP account in WinBox under **Tools → E-mail** and set the recipient in the script.
 - Telegram Bot API (for scripts with Telegram notifications)
 
 ## Installation

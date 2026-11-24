@@ -1,35 +1,13 @@
-# ltestat.rsc - Script Description
+# LTE connection recovery on RouterOS 7
 
-## Purpose
-**ltestat.rsc** is a script for collecting additional MikroTik device performance statistics.
+[ltestat.rsc](ltestat.rsc) reads the interface status with `/interface lte monitor`. It restarts the interface only when the reported status is `disconnected`, `deregistered`, or `denied`. If the interface is missing or administratively disabled, the status cannot be read, or the state is unknown, the script logs the reason and exits.
 
-## Functionality
-- Collecting extended performance statistics
-- Monitoring additional system parameters
-- Logging statistical data
-- Providing detailed information for analysis
+To restart the interface, the script disables it for 5 seconds, enables it, then checks the connection again after 25 seconds. It logs the recovery result in RouterOS and sends it to Telegram if bot notifications are configured.
 
-## Configuration Parameters
-- **logLevel** - Logging detail level
-- **outputFormat** - Statistics output format
-- **includeDetails** - Include detailed information
+## Setup
 
-## Requirements
-- RouterOS version 6.43.7 or higher
-- Access to system resources
-- Sufficient space for logs
+1. At the top of the script, set `lteName` to the name of the LTE interface. The default is `lte1`.
+2. To enable notifications, replace `BOT_TOKEN` in `botToken` with the bot token and `CHAT_ID` in `chatId` with the destination chat ID.
+3. Run the script manually or schedule it under **System → Scheduler**.
 
-## Usage
-1. Copy the script to your device
-2. Configure logging parameters if necessary
-3. Run manually or add to scheduler
-4. Analyze collected statistics
-
-## Features
-- Extended system information collection
-- Detailed logging for analysis
-- Flexible detail level configuration
-- Safe data collection without performance impact
-
----
-[English](ltestat_DESCRIPTION_EN.md) | [Русский](ltestat_DESCRIPTION.md)
+[Русский](ltestat_DESCRIPTION.md)
